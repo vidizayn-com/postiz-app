@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PoliciesGuard } from '@gitroom/backend/services/auth/permissions/permissions.guard';
 import { BullMqModule } from '@gitroom/nestjs-libraries/bull-mq-transport-new/bull.mq.module';
 import { PublicApiModule } from '@gitroom/backend/public-api/public.api.module';
+import { UserApiModule } from '@gitroom/backend/user-api/user.api.module';
 import { ThrottlerBehindProxyGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AgentModule } from '@gitroom/nestjs-libraries/agent/agent.module';
@@ -22,6 +23,7 @@ import { FILTER } from '@gitroom/nestjs-libraries/sentry/sentry.exception';
     DatabaseModule,
     ApiModule,
     PublicApiModule,
+    UserApiModule,
     AgentModule,
     McpModule,
     ThirdPartyModule,
@@ -50,6 +52,7 @@ import { FILTER } from '@gitroom/nestjs-libraries/sentry/sentry.exception';
     DatabaseModule,
     ApiModule,
     PublicApiModule,
+    UserApiModule,
     AgentModule,
     McpModule,
     ThrottlerModule,
