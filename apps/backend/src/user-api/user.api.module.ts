@@ -3,11 +3,7 @@ import { UploadModule } from '@gitroom/nestjs-libraries/upload/upload.module';
 
 // Controllers
 import { ApiKeyManagementController } from '@gitroom/backend/api/routes/api-key-management.controller';
-import { PublicIntegrationsController } from '@gitroom/backend/public-api/routes/v1/public.integrations.controller';
-
-// Create a wrapper controller for the public integrations with different route prefix
-@Controller('/api/v1')
-class UserApiIntegrationsController extends PublicIntegrationsController {}
+import { UserApiPostsController } from './user-api-posts.controller';
 
 // Services and Middleware
 import { UserApiKeyMiddleware } from '@gitroom/backend/services/auth/user-api-key.middleware';
@@ -24,7 +20,7 @@ import { CodesService } from '@gitroom/nestjs-libraries/services/codes.service';
 // Controllers that will be protected by user API key middleware
 const userApiKeyProtectedControllers = [
   ApiKeyManagementController,
-  UserApiIntegrationsController, // Use wrapper controller with different route
+  UserApiPostsController,
 ];
 
 @Module({

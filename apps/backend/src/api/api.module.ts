@@ -1,6 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AuthController } from '@gitroom/backend/api/routes/auth.controller';
 import { ApiKeyAuthController } from '@gitroom/backend/api/routes/api-key-auth.controller';
+import { UserApiPostsController } from '@gitroom/backend/user-api/user-api-posts.controller';
+import { ApiKeyManagementController } from '@gitroom/backend/api/routes/api-key-management.controller';
 import { AuthService } from '@gitroom/backend/services/auth/auth.service';
 import { UsersController } from '@gitroom/backend/api/routes/users.controller';
 import { AuthMiddleware } from '@gitroom/backend/services/auth/auth.middleware';
@@ -22,6 +24,7 @@ import { MessagesController } from '@gitroom/backend/api/routes/messages.control
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import { ExtractContentService } from '@gitroom/nestjs-libraries/openai/extract.content.service';
 import { CodesService } from '@gitroom/nestjs-libraries/services/codes.service';
+import { UserApiKeyMiddleware } from '@gitroom/backend/services/auth/user-api-key.middleware';
 import { CopilotController } from '@gitroom/backend/api/routes/copilot.controller';
 import { AgenciesController } from '@gitroom/backend/api/routes/agencies.controller';
 import { PublicController } from '@gitroom/backend/api/routes/public.controller';
@@ -64,6 +67,8 @@ const authenticatedController = [
     StripeController,
     AuthController,
     ApiKeyAuthController,
+    UserApiPostsController,
+    ApiKeyManagementController,
     PublicController,
     McpController,
     MonitorController,
@@ -83,6 +88,7 @@ const authenticatedController = [
     ShortLinkService,
     Nowpayments,
     McpService,
+    UserApiKeyMiddleware,
   ],
   get exports() {
     return [...this.imports, ...this.providers];
@@ -90,6 +96,12 @@ const authenticatedController = [
 })
 export class ApiModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // Apply regular auth middleware to authenticated controllers
     consumer.apply(AuthMiddleware).forRoutes(...authenticatedController);
+
+    // Apply user API key middleware to user API endpoints
+    consumer
+      .apply(UserApiKeyMiddleware)
+      .forRoutes(UserApiPostsController, ApiKeyManagementController);
   }
 }

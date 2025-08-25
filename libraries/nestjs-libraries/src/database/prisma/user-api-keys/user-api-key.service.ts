@@ -4,6 +4,25 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { UserApiKey } from '@prisma/client';
 
+type UserApiKeyWithRelations = UserApiKey & {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    activated: boolean;
+    isSuperAdmin: boolean;
+  };
+  organization: {
+    id: string;
+    name: string;
+    subscription: {
+      subscriptionTier: string;
+      totalChannels: number;
+      isLifetime: boolean;
+    } | null;
+  };
+};
+
 export interface CreateApiKeyRequest {
   userId: string;
   organizationId: string;
@@ -77,7 +96,7 @@ export class UserApiKeyService {
 
     // Generate the API key
     const keyValue = this.generateApiKey();
-    const keyHash = AuthService.hashPassword(keyValue);
+    const keyHash = AuthService.fixedEncryption(keyValue);
 
     // Calculate expiration date
     const expiresAt = request.expiresInDays
@@ -111,8 +130,8 @@ export class UserApiKeyService {
       return null;
     }
 
-    const keyHash = AuthService.hashPassword(keyValue);
-    const apiKey = await this._userApiKeyRepository.findByKeyHash(keyHash);
+    const keyHash = AuthService.fixedEncryption(keyValue);
+    const apiKey = await this._userApiKeyRepository.findByKeyHash(keyHash) as UserApiKeyWithRelations | null;
 
     if (!apiKey) {
       return null;
@@ -222,7 +241,7 @@ export class UserApiKeyService {
 
     // Generate new key value and hash
     const keyValue = this.generateApiKey();
-    const keyHash = AuthService.hashPassword(keyValue);
+    const keyHash = AuthService.fixedEncryption(keyValue);
 
     const updatedKey = await this._userApiKeyRepository.updateApiKey(id, userId, {
       keyHash,

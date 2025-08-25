@@ -92,16 +92,6 @@ export class UserApiKeyRepository {
       orderBy: {
         createdAt: 'desc',
       },
-      select: {
-        id: true,
-        name: true,
-        lastUsedAt: true,
-        lastUsedIp: true,
-        expiresAt: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
     });
   }
 

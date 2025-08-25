@@ -80,7 +80,7 @@ export class ApiKeyAuthController {
         },
         organization: {
           id: activeOrg.id,
-          name: activeOrg.name,
+          name: activeOrg.name || activeOrg.id,
         },
       };
     } catch (error) {
@@ -90,7 +90,7 @@ export class ApiKeyAuthController {
       
       return {
         success: false,
-        message: error.message || 'Login failed',
+        message: error instanceof Error ? error.message : 'Login failed',
       };
     }
   }
@@ -158,7 +158,7 @@ export class ApiKeyAuthController {
         },
         organization: {
           id: organization.id,
-          name: organization.name,
+          name: organization.name || organization.id,
         },
       };
     } catch (error) {
@@ -168,7 +168,7 @@ export class ApiKeyAuthController {
       
       return {
         success: false,
-        message: error.message || 'Registration failed',
+        message: error instanceof Error ? error.message : 'Registration failed',
       };
     }
   }

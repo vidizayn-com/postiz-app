@@ -49,11 +49,12 @@ export class ApiKeyManagementController {
         expiresInDays: body.expiresInDays,
       });
     } catch (error) {
-      if (error.message.includes('already exists')) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('already exists')) {
         throw new HttpException('API key name already exists', HttpStatus.CONFLICT);
       }
-      if (error.message.includes('Maximum')) {
-        throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      if (errorMessage.includes('Maximum')) {
+        throw new HttpException(errorMessage, HttpStatus.BAD_REQUEST);
       }
       throw new HttpException('Failed to create API key', HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -69,7 +70,8 @@ export class ApiKeyManagementController {
     try {
       return await this._userApiKeyService.updateApiKey(id, user.id, org.id, body);
     } catch (error) {
-      if (error.message.includes('already exists')) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('already exists')) {
         throw new HttpException('API key name already exists', HttpStatus.CONFLICT);
       }
       throw new HttpException('Failed to update API key', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -85,7 +87,8 @@ export class ApiKeyManagementController {
     try {
       return await this._userApiKeyService.regenerateApiKey(id, user.id, org.id);
     } catch (error) {
-      if (error.message.includes('not found')) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('not found')) {
         throw new HttpException('API key not found', HttpStatus.NOT_FOUND);
       }
       throw new HttpException('Failed to regenerate API key', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -104,7 +107,8 @@ export class ApiKeyManagementController {
         message: 'API key deleted successfully',
       };
     } catch (error) {
-      if (error.message.includes('not found')) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('not found')) {
         throw new HttpException('API key not found', HttpStatus.NOT_FOUND);
       }
       throw new HttpException('Failed to delete API key', HttpStatus.INTERNAL_SERVER_ERROR);

@@ -243,6 +243,7 @@ export class OrganizationRepository {
       },
       select: {
         id: true,
+        name: true,
         users: {
           select: {
             user: true,
