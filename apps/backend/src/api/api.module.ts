@@ -1,7 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AuthController } from '@gitroom/backend/api/routes/auth.controller';
 import { ApiKeyAuthController } from '@gitroom/backend/api/routes/api-key-auth.controller';
-import { UserApiPostsController } from '@gitroom/backend/user-api/user-api-posts.controller';
 import { ApiKeyManagementController } from '@gitroom/backend/api/routes/api-key-management.controller';
 import { AuthService } from '@gitroom/backend/services/auth/auth.service';
 import { UsersController } from '@gitroom/backend/api/routes/users.controller';
@@ -40,6 +39,8 @@ import { McpController } from '@gitroom/backend/api/routes/mcp.controller';
 import { SetsController } from '@gitroom/backend/api/routes/sets.controller';
 import { ThirdPartyController } from '@gitroom/backend/api/routes/third-party.controller';
 import { MonitorController } from '@gitroom/backend/api/routes/monitor.controller';
+import { ApiCallbackController } from '@gitroom/backend/api/routes/api-callback.controller';
+import { IntegrationCallbackService } from '@gitroom/nestjs-libraries/services/integration-callback.service';
 
 const authenticatedController = [
   UsersController,
@@ -67,11 +68,11 @@ const authenticatedController = [
     StripeController,
     AuthController,
     ApiKeyAuthController,
-    UserApiPostsController,
     ApiKeyManagementController,
     PublicController,
     McpController,
     MonitorController,
+    ApiCallbackController,
     ...authenticatedController,
   ],
   providers: [
@@ -89,6 +90,7 @@ const authenticatedController = [
     Nowpayments,
     McpService,
     UserApiKeyMiddleware,
+    IntegrationCallbackService,
   ],
   get exports() {
     return [...this.imports, ...this.providers];
@@ -102,6 +104,6 @@ export class ApiModule implements NestModule {
     // Apply user API key middleware to user API endpoints
     consumer
       .apply(UserApiKeyMiddleware)
-      .forRoutes(UserApiPostsController, ApiKeyManagementController);
+      .forRoutes(ApiKeyManagementController);
   }
 }

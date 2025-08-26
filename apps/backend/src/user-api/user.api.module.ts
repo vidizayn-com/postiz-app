@@ -2,8 +2,8 @@ import { MiddlewareConsumer, Module, NestModule, Controller } from '@nestjs/comm
 import { UploadModule } from '@gitroom/nestjs-libraries/upload/upload.module';
 
 // Controllers
-import { ApiKeyManagementController } from '@gitroom/backend/api/routes/api-key-management.controller';
 import { UserApiPostsController } from './user-api-posts.controller';
+import { UserApiIntegrationsController } from './user-api-integrations.controller';
 
 // Services and Middleware
 import { UserApiKeyMiddleware } from '@gitroom/backend/services/auth/user-api-key.middleware';
@@ -16,11 +16,12 @@ import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integ
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import { ExtractContentService } from '@gitroom/nestjs-libraries/openai/extract.content.service';
 import { CodesService } from '@gitroom/nestjs-libraries/services/codes.service';
+import { IntegrationCallbackService } from '@gitroom/nestjs-libraries/services/integration-callback.service';
 
 // Controllers that will be protected by user API key middleware
 const userApiKeyProtectedControllers = [
-  ApiKeyManagementController,
   UserApiPostsController,
+  UserApiIntegrationsController,
 ];
 
 @Module({
@@ -37,11 +38,11 @@ const userApiKeyProtectedControllers = [
     PermissionsService,
     CodesService,
     IntegrationManager,
+    IntegrationCallbackService,
   ],
   exports: [
     UserApiKeyService,
     UserApiKeyMiddleware,
-    ...userApiKeyProtectedControllers,
   ],
 })
 export class UserApiModule implements NestModule {

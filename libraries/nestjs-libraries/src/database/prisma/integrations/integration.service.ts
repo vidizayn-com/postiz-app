@@ -133,6 +133,10 @@ export class IntegrationService {
     return this._integrationRepository.updateIntegrationGroup(org, id, group);
   }
 
+  updateIntegration(id: string, params: any) {
+    return this._integrationRepository.updateIntegration(id, params);
+  }
+
   updateOnCustomerName(org: string, id: string, name: string) {
     return this._integrationRepository.updateOnCustomerName(org, id, name);
   }
