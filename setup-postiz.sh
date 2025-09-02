@@ -67,12 +67,12 @@ setup_environment() {
     fi
     
     if [ -f ".env" ]; then
-        print_warning ".env file already exists. Backing up to .env.backup"
-        cp .env .env.backup
+        print_warning ".env file already exists."
+    else
+        # Copy and configure .env file
+        cp .env.example .env
     fi
     
-    # Copy and configure .env file
-    cp .env.example .env
     
     # Update database and Redis URLs for Docker network
     sed -i 's|DATABASE_URL="postgresql://postiz-user:postiz-password@localhost:5432/postiz-db-local"|DATABASE_URL="postgresql://postiz-local:postiz-local-pwd@postiz-postgres:5432/postiz-db-local"|g' .env

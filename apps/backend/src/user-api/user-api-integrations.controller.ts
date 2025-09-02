@@ -114,7 +114,11 @@ export class UserApiIntegrationsController {
           : 'Redirect user to authUrl to complete OAuth flow'
       };
     } catch (err) {
-      throw new HttpException('Failed to generate auth URL', HttpStatus.INTERNAL_SERVER_ERROR);
+      console.error('Integration Controller - Error in initiateIntegration:', err);
+      console.error('Integration Controller - Error message:', (err as Error)?.message);
+      console.error('Integration Controller - Error stack:', (err as Error)?.stack);
+      console.error('Integration Controller - Provider:', provider);
+      throw new HttpException(`Failed to generate auth URL: ${(err as Error)?.message || 'Unknown error'}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

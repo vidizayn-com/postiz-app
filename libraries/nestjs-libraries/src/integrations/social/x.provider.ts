@@ -214,25 +214,66 @@ export class XProvider extends SocialAbstract implements SocialProvider {
   }
 
   async generateAuthUrl() {
-    const client = new TwitterApi({
-      appKey: process.env.X_API_KEY!,
-      appSecret: process.env.X_API_SECRET!,
-    });
-    const { url, oauth_token, oauth_token_secret } =
-      await client.generateAuthLink(
-        (process.env.X_URL || process.env.FRONTEND_URL) +
-          `/integrations/social/x`,
-        {
-          authAccessType: 'write',
-          linkMode: 'authenticate',
-          forceLogin: false,
-        }
-      );
-    return {
-      url,
-      codeVerifier: oauth_token + ':' + oauth_token_secret,
-      state: oauth_token,
-    };
+    try {
+      console.log('X Provider - Starting generateAuthUrl');
+      console.log('X_API_KEY exists:', !!process.env.X_API_KEY);
+      console.log('X_API_SECRET exists:', !!process.env.X_API_SECRET);
+      console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+      console.log('X_URL:', process.env.X_URL);
+
+      if (!process.env.X_API_KEY) {
+        throw new Error('X_API_KEY environment variable is not set');
+      }
+
+      if (!process.env.X_API_SECRET) {
+        throw new Error('X_API_SECRET environment variable is not set');
+      }
+
+      const client = new TwitterApi({
+        appKey: process.env.X_API_KEY!,
+        appSecret: process.env.X_API_SECRET!,
+      });
+
+      const callbackUrl = (process.env.X_URL || process.env.FRONTEND_URL) + `/integrations/social/x`;
+      console.log('X Provider - Callback URL:', callbackUrl);
+
+      console.log('X Provider - About to call generateAuthLink...');
+      const { url, oauth_token, oauth_token_secret } =
+        await client.generateAuthLink(
+          callbackUrl,
+          {
+            authAccessType: 'write',
+            linkMode: 'authenticate',
+            forceLogin: false,
+          }
+        );
+
+      console.log('X Provider - Auth URL generated successfully');
+      console.log('X Provider - OAuth token:', oauth_token);
+
+      return {
+        url,
+        codeVerifier: oauth_token + ':' + oauth_token_secret,
+        state: oauth_token,
+      };
+    } catch (error) {
+      console.error('X Provider - Error in generateAuthUrl:', error);
+      console.error('X Provider - Error stack:', (error as Error)?.stack);
+
+      // Log additional error details if available
+      if (error && typeof error === 'object') {
+        console.error('X Provider - Error details:', {
+          message: (error as any).message,
+          code: (error as any).code,
+          status: (error as any).status,
+          statusCode: (error as any).statusCode,
+          data: (error as any).data,
+          response: (error as any).response,
+        });
+      }
+
+      throw error;
+    }
   }
 
   async authenticate(params: { code: string; codeVerifier: string }) {
