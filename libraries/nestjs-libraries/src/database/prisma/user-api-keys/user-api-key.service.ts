@@ -125,6 +125,62 @@ export class UserApiKeyService {
     };
   }
 
+  async createOrGetApiKey(request: CreateApiKeyRequest): Promise<ApiKeyResponse> {
+    // First, check if a key with the same name already exists
+    const existingKey = await this._userApiKeyRepository.findByNameAndUser(
+      request.name,
+      request.userId,
+      request.organizationId
+    );
+
+    if (existingKey) {
+      // Return the existing key (without the actual key value for security)
+      return {
+        id: existingKey.id,
+        name: existingKey.name,
+        lastUsedAt: existingKey.lastUsedAt,
+        lastUsedIp: existingKey.lastUsedIp,
+        expiresAt: existingKey.expiresAt,
+        isActive: existingKey.isActive,
+        createdAt: existingKey.createdAt,
+      };
+    }
+
+    // Check if user has reached the maximum limit
+    const existingKeysCount = await this._userApiKeyRepository.countUserApiKeys(
+      request.userId,
+      request.organizationId
+    );
+
+    if (existingKeysCount >= this.MAX_KEYS_PER_USER) {
+      // If user has reached the limit, return the most recently created key
+      const userKeys = await this._userApiKeyRepository.findUserApiKeys(
+        request.userId,
+        request.organizationId
+      );
+
+      if (userKeys.length > 0) {
+        // Sort by creation date and return the most recent one
+        const mostRecentKey = userKeys.sort((a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0];
+
+        return {
+          id: mostRecentKey.id,
+          name: mostRecentKey.name,
+          lastUsedAt: mostRecentKey.lastUsedAt,
+          lastUsedIp: mostRecentKey.lastUsedIp,
+          expiresAt: mostRecentKey.expiresAt,
+          isActive: mostRecentKey.isActive,
+          createdAt: mostRecentKey.createdAt,
+        };
+      }
+    }
+
+    // If no existing key and under the limit, create a new one
+    return this.createApiKey(request);
+  }
+
   async validateApiKey(keyValue: string, ip?: string): Promise<ValidatedApiKey | null> {
     if (!this.isValidKeyFormat(keyValue)) {
       return null;
@@ -277,5 +333,23 @@ export class UserApiKeyService {
 
   async cleanupExpiredKeys(): Promise<number> {
     return this._userApiKeyRepository.deactivateExpiredKeys();
+  }
+
+  async findByNameAndUser(name: string, userId: string, organizationId: string): Promise<ApiKeyResponse | null> {
+    const apiKey = await this._userApiKeyRepository.findByNameAndUser(name, userId, organizationId);
+
+    if (!apiKey) {
+      return null;
+    }
+
+    return {
+      id: apiKey.id,
+      name: apiKey.name,
+      lastUsedAt: apiKey.lastUsedAt,
+      lastUsedIp: apiKey.lastUsedIp,
+      expiresAt: apiKey.expiresAt,
+      isActive: apiKey.isActive,
+      createdAt: apiKey.createdAt,
+    };
   }
 }

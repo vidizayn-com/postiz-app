@@ -30,9 +30,13 @@ export class ApiCallbackController {
     @Query() query: Record<string, any>,
     @Res() response: Response
   ) {
+    console.log(`API Callback - Provider: ${provider}`);
+    console.log('API Callback - Query params:', query);
+
     const { code, state, oauth_token, oauth_verifier, error } = query;
-    
+
     if (error) {
+      console.log('API Callback - OAuth error:', error);
       const callbackUrl = await this._callbackService.getCallbackUrl(state);
       if (callbackUrl) {
         await this._callbackService.sendCallback(state, {
@@ -53,9 +57,13 @@ export class ApiCallbackController {
 
     // Twitter/X uses different parameter names
     if (oauth_token && oauth_verifier) {
+      console.log('API Callback - Using X/Twitter OAuth 1.0a parameters');
       finalCode = oauth_verifier;
       finalState = oauth_token;
     }
+
+    console.log('API Callback - Final code:', finalCode ? 'present' : 'missing');
+    console.log('API Callback - Final state:', finalState);
 
     if (!finalCode || !finalState) {
       throw new HttpException('Missing required OAuth parameters', HttpStatus.BAD_REQUEST);
@@ -93,10 +101,15 @@ export class ApiCallbackController {
 
       const details = await ioRedis.get(`external:${finalState}`);
 
-      // Get organization ID from state (we need to store this in initiate)
+      // Get organization ID from state - this is only available for API-initiated flows
       const orgId = await ioRedis.get(`org:${finalState}`);
+
+      // If no org ID is found, this might be a frontend-initiated flow
+      // In that case, we should redirect to the frontend to handle the OAuth completion
       if (!orgId) {
-        throw new HttpException('Organization context not found', HttpStatus.BAD_REQUEST);
+        console.log('No organization context found - redirecting to frontend OAuth handler');
+        const frontendCallbackUrl = `${process.env.FRONTEND_URL}/integrations/social/${provider}?code=${encodeURIComponent(finalCode)}&state=${encodeURIComponent(finalState)}`;
+        return response.redirect(frontendCallbackUrl);
       }
 
       const authResult = await new Promise<AuthTokenDetails>((resolve, reject) => {
@@ -142,29 +155,38 @@ export class ApiCallbackController {
         username: integration.profile,
       };
 
-      // Try to send callback
+      // Try to send callback notification
       const callbackSent = await this._callbackService.sendCallback(finalState, callbackData);
-      
-      if (callbackSent) {
-        // If callback was sent successfully, show a success page
-        return response.send(`
-          <html>
-            <head><title>Integration Successful</title></head>
-            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-              <h1>✅ Integration Successful</h1>
-              <p>Your ${provider} account has been successfully connected.</p>
-              <p>You can close this window now.</p>
-              <script>
-                setTimeout(() => {
-                  window.close();
-                }, 3000);
-              </script>
-            </body>
-          </html>
-        `);
+
+      // Get the callback URL to redirect the user
+      const callbackUrl = await this._callbackService.getCallbackUrl(finalState);
+      console.log('API Callback - Stored callback URL:', callbackUrl ? 'found' : 'not found');
+
+      if (callbackUrl) {
+        await this._callbackService.sendCallback(finalState, callbackData);
+
+        // Redirect user to their callback URL with success parameters
+        const params = new URLSearchParams({
+          status: callbackData.status,
+          provider: callbackData.provider,
+          integrationId: callbackData.integrationId,
+          ...(callbackData.name && { name: callbackData.name }),
+          ...(callbackData.username && { username: callbackData.username }),
+          ...(callbackData.picture && { picture: callbackData.picture }),
+        });
+
+        const separator = callbackUrl.includes('?') ? '&' : '?';
+        console.log('API Callback - Redirecting to:', `${callbackUrl}${separator}${params.toString()}`);
+        return response.redirect(`${callbackUrl}${separator}${params.toString()}`);
       } else {
         // No callback URL was provided, return JSON response
-        return response.json(callbackData);
+        console.log('API Callback - No callback URL, returning JSON response');
+        return response.status(200).json({
+          success: true,
+          message: 'Integration completed successfully',
+          data: callbackData,
+          timestamp: new Date().toISOString(),
+        });
       }
 
     } catch (error) {

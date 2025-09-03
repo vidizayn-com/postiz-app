@@ -62,7 +62,25 @@ export const ContinueIntegration: FC<{
         return;
       }
 
-      const { inBetweenSteps, id } = await data.json();
+      const response = await data.json();
+      const { inBetweenSteps, id, callbackUrl } = response;
+
+      // If there's a callback URL, redirect to it instead of the default flow
+      if (callbackUrl) {
+        const params = new URLSearchParams({
+          status: inBetweenSteps ? 'pending' : 'connected',
+          provider: provider,
+          integrationId: id,
+          ...(response.name && { name: response.name }),
+          ...(response.username && { username: response.username }),
+        });
+
+        const separator = callbackUrl.includes('?') ? '&' : '?';
+        window.location.href = `${callbackUrl}${separator}${params.toString()}`;
+        return;
+      }
+
+      // Default Postiz UI flow
       if (inBetweenSteps && !searchParams.refresh) {
         push(`/launches?added=${provider}&continue=${id}`);
         return;

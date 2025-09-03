@@ -404,6 +404,9 @@ export class IntegrationsController {
       throw new Error('Invalid state');
     }
 
+    // Check if there's a stored callback URL for this state
+    const storedCallbackUrl = await ioRedis.get(`callback:${body.state}`);
+
     if (!integrationProvider.customFields) {
       await ioRedis.del(`login:${body.state}`);
     }
@@ -500,7 +503,7 @@ export class IntegrationsController {
       throw new HttpException('', 412);
     }
 
-    return this._integrationService.createOrUpdateIntegration(
+    const integrationResult = await this._integrationService.createOrUpdateIntegration(
       additionalSettings,
       !!integrationProvider.oneTimeToken,
       org.id,
@@ -524,6 +527,17 @@ export class IntegrationsController {
           )
         : undefined
     );
+
+    // Clean up the stored callback URL after use
+    if (storedCallbackUrl) {
+      await ioRedis.del(`callback:${body.state}`);
+    }
+
+    // Return the integration result with callback URL if it exists
+    return {
+      ...integrationResult,
+      ...(storedCallbackUrl && { callbackUrl: storedCallbackUrl })
+    };
   }
 
   @Post('/disable')

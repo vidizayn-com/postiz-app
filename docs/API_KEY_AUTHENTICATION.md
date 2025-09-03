@@ -94,19 +94,30 @@ Login with email/password and receive an API key.
 ```
 
 #### POST `/auth/api-key/register`
-Register a new user and receive an API key.
+Register a new user and receive an API key. If a user with the provided email already exists, this endpoint will behave like a login instead of throwing an error, validating the registration token and creating a new API key for the existing user.
 
 **Request Body:**
 ```json
 {
   "email": "user@example.com",
-  "password": "password123",
+  "password": "your-registration-token-from-env",
   "provider": "LOCAL",
   "company": "My Company",
   "keyName": "My API Key",
   "expiresInDays": 30
 }
 ```
+
+**Important:** The `password` field should contain the registration token defined in the `API_KEY_REGISTRATION_TOKEN` environment variable, not an actual password.
+
+**Note:** If the user already exists:
+- The `company` field is ignored (existing organization is used)
+- Registration token is validated against the `API_KEY_REGISTRATION_TOKEN` environment variable
+- If an API key with the same name exists, that key is regenerated and returned with a new key value
+- If the user has reached the maximum API key limit (10), the most recent key is regenerated and returned
+- If no conflicts, creates a new API key for the existing user
+- Always returns the actual API key value in the response (same as new user registration)
+- Returns the same response format as a successful registration
 
 ### API Key Management Endpoints
 
@@ -213,10 +224,38 @@ Authorization: Bearer postiz_live_abcd1234...
 ## Configuration
 
 ### Environment Variables
+- `API_KEY_REGISTRATION_TOKEN`: **Required** - Static token for API key registration authentication
 - `JWT_SECRET`: Used for key hashing and JWT signing
 - `NODE_ENV`: Determines key prefix (live/test)
 - `API_LIMIT`: Rate limiting configuration
 - `STRIPE_SECRET_KEY`: If set, requires active subscription
+
+#### API_KEY_REGISTRATION_TOKEN
+This is a required environment variable that serves as a static authentication token for the API key registration endpoint.
+
+**Setup:**
+```bash
+# Add to your .env file
+API_KEY_REGISTRATION_TOKEN="your-secure-registration-token-here"
+```
+
+**Security Recommendations:**
+- Use a long, random string (32+ characters)
+- Keep it secret and don't expose it publicly
+- Rotate it periodically for security
+- Use different tokens for different environments
+
+**Usage:**
+The token should be passed in the `password` field of registration requests:
+```json
+{
+  "email": "user@example.com",
+  "password": "your-secure-registration-token-here",
+  "provider": "LOCAL",
+  "company": "My Company",
+  "keyName": "My API Key"
+}
+```
 
 ### Database Migration
 Run Prisma migration to add the new UserApiKey model:

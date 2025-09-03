@@ -58,7 +58,7 @@
                 "register"
               ]
             },
-            "description": "Register a new user and receive an API key. This endpoint creates a new user account, organization, and generates an API key for authentication."
+            "description": "Register a new user and receive an API key. If a user with the provided email already exists, this endpoint will behave like a login instead of throwing an error, validating the registration token and creating a new API key for the existing user. The 'password' field should contain the API_KEY_REGISTRATION_TOKEN from your environment variables."
           },
           "response": [
             {

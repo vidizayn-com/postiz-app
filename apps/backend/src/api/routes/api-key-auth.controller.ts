@@ -114,7 +114,90 @@ export class ApiKeyAuthController {
       // Check if user already exists
       const existingUser = await this._usersService.getUserByEmail(body.email);
       if (existingUser) {
-        throw new HttpException('Email already exists', HttpStatus.CONFLICT);
+        // If user exists, perform login flow instead of throwing error
+        // Validate registration token instead of password
+        const registrationToken = process.env.API_KEY_REGISTRATION_TOKEN;
+        if (!registrationToken) {
+          throw new HttpException('API key registration is not configured', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        if (body.password !== registrationToken) {
+          throw new HttpException('Invalid registration token', HttpStatus.UNAUTHORIZED);
+        }
+
+        if (!existingUser.activated) {
+          throw new HttpException('User account is not activated', HttpStatus.UNAUTHORIZED);
+        }
+
+        // Get user's organizations
+        const organizations = await this._organizationService.getOrgsByUserId(existingUser.id);
+        if (!organizations || organizations.length === 0) {
+          throw new HttpException('No organization found for user', HttpStatus.BAD_REQUEST);
+        }
+
+        // Use the first active organization
+        const activeOrg = organizations.find((org: any) => !org.users[0].disabled) || organizations[0];
+
+        // Create API key for existing user (handle errors gracefully)
+        let apiKey;
+        try {
+          apiKey = await this._userApiKeyService.createApiKey({
+            userId: existingUser.id,
+            organizationId: activeOrg.id,
+            name: body.keyName,
+            expiresInDays: body.expiresInDays,
+          });
+        } catch (error) {
+          // If key name already exists or user has too many keys, get the existing/recent key
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('already exists') || errorMessage.includes('Maximum')) {
+            // Get existing key with same name first
+            const existingKey = await this._userApiKeyService.findByNameAndUser(
+              body.keyName,
+              existingUser.id,
+              activeOrg.id
+            );
+
+            if (existingKey) {
+              // Return existing key but regenerate it to get the key value
+              apiKey = await this._userApiKeyService.regenerateApiKey(
+                existingKey.id,
+                existingUser.id,
+                activeOrg.id
+              );
+            } else {
+              // If no existing key with same name, get the most recent key and regenerate it
+              const userKeys = await this._userApiKeyService.getUserApiKeys(existingUser.id, activeOrg.id);
+              if (userKeys.length > 0) {
+                const mostRecentKey = userKeys[0]; // getUserApiKeys returns keys ordered by createdAt desc
+                apiKey = await this._userApiKeyService.regenerateApiKey(
+                  mostRecentKey.id,
+                  existingUser.id,
+                  activeOrg.id
+                );
+              } else {
+                // This shouldn't happen, but if it does, throw the original error
+                throw error;
+              }
+            }
+          } else {
+            throw error;
+          }
+        }
+
+        return {
+          success: true,
+          apiKey,
+          user: {
+            id: existingUser.id,
+            email: existingUser.email,
+            name: existingUser.name || '',
+          },
+          organization: {
+            id: activeOrg.id,
+            name: activeOrg.name || activeOrg.id,
+          },
+        };
       }
 
       // Create organization and user
@@ -140,13 +223,52 @@ export class ApiKeyAuthController {
         await this._usersService.activateUser(user.id);
       }
 
-      // Create API key
-      const apiKey = await this._userApiKeyService.createApiKey({
-        userId: user.id,
-        organizationId: organization.id,
-        name: body.keyName,
-        expiresInDays: body.expiresInDays,
-      });
+      // Create API key (for new users, this should always succeed)
+      let apiKey;
+      try {
+        apiKey = await this._userApiKeyService.createApiKey({
+          userId: user.id,
+          organizationId: organization.id,
+          name: body.keyName,
+          expiresInDays: body.expiresInDays,
+        });
+      } catch (error) {
+        // For new users, this shouldn't happen, but handle gracefully just in case
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('already exists') || errorMessage.includes('Maximum')) {
+          // Get existing key with same name first
+          const existingKey = await this._userApiKeyService.findByNameAndUser(
+            body.keyName,
+            user.id,
+            organization.id
+          );
+
+          if (existingKey) {
+            // Return existing key but regenerate it to get the key value
+            apiKey = await this._userApiKeyService.regenerateApiKey(
+              existingKey.id,
+              user.id,
+              organization.id
+            );
+          } else {
+            // If no existing key with same name, get the most recent key and regenerate it
+            const userKeys = await this._userApiKeyService.getUserApiKeys(user.id, organization.id);
+            if (userKeys.length > 0) {
+              const mostRecentKey = userKeys[0]; // getUserApiKeys returns keys ordered by createdAt desc
+              apiKey = await this._userApiKeyService.regenerateApiKey(
+                mostRecentKey.id,
+                user.id,
+                organization.id
+              );
+            } else {
+              // This shouldn't happen, but if it does, throw the original error
+              throw error;
+            }
+          }
+        } else {
+          throw error;
+        }
+      }
 
       return {
         success: true,

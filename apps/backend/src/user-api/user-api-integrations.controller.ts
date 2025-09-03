@@ -80,19 +80,8 @@ export class UserApiIntegrationsController {
       // Generate auth URL
       const { codeVerifier, state, url } = await integrationProvider.generateAuthUrl(getExternalUrl);
 
+      // The OAuth URL now uses the API callback endpoint directly
       let authUrl = url;
-
-      // If callback URL is provided, modify the OAuth URL to use our API callback endpoint
-      if (callbackUrl) {
-        const apiCallbackUrl = `${process.env.BACKEND_URL || process.env.FRONTEND_URL}/api/callback/oauth/${provider}`;
-        const frontendCallbackUrl = `${process.env.FRONTEND_URL}/integrations/social/${provider}`;
-
-        // Replace the frontend callback URL with our API callback URL
-        authUrl = url.replace(
-          encodeURIComponent(frontendCallbackUrl),
-          encodeURIComponent(apiCallbackUrl)
-        );
-      }
 
       // Store callback URL and organization context
       if (callbackUrl) {

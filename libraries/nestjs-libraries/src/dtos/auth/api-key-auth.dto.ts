@@ -49,7 +49,7 @@ export class ApiKeyRegisterDto {
   @MinLength(3)
   @MaxLength(64)
   @IsDefined()
-  password: string;
+  password: string; // Used as registration token for API key registration
 
   @IsString()
   @IsDefined()

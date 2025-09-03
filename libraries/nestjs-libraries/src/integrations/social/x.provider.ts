@@ -234,7 +234,8 @@ export class XProvider extends SocialAbstract implements SocialProvider {
         appSecret: process.env.X_API_SECRET!,
       });
 
-      const callbackUrl = (process.env.X_URL || process.env.FRONTEND_URL) + `/integrations/social/x`;
+      // Use the backend API callback URL for custom callback URL support
+      const callbackUrl = `http://localhost:3000/api/callback/oauth/x`;
       console.log('X Provider - Callback URL:', callbackUrl);
 
       console.log('X Provider - About to call generateAuthLink...');
@@ -247,6 +248,9 @@ export class XProvider extends SocialAbstract implements SocialProvider {
             forceLogin: false,
           }
         );
+
+      console.log('X Provider - Generated OAuth URL:', url);
+      console.log('X Provider - OAuth token:', oauth_token);
 
       console.log('X Provider - Auth URL generated successfully');
       console.log('X Provider - OAuth token:', oauth_token);
