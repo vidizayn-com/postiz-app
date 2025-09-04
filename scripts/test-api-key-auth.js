@@ -53,7 +53,7 @@ async function testRegistration() {
     provider: 'LOCAL',
     company: TEST_COMPANY,
     keyName: 'Test API Key',
-    expiresInDays: 30,
+    // expiresInDays: 30, // Commented out to create non-expiring key
   };
 
   const result = await apiRequest('POST', '/auth/api-key/register', registrationData);
@@ -118,10 +118,10 @@ async function testApiKeyManagement(apiKey) {
     });
     console.log(`✅ Listed ${keys.length} existing API keys`);
 
-    // Create a new key
+    // Create a new key (non-expiring)
     const newKeyData = {
       name: 'Management Test Key',
-      expiresInDays: 14,
+      // expiresInDays: 14, // Commented out to create non-expiring key
     };
     
     const newKey = await apiRequest('POST', '/api-keys', newKeyData, {

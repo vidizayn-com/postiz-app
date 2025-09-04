@@ -64,10 +64,12 @@ Login with email/password and receive an API key.
   "email": "user@example.com",
   "password": "password123",
   "provider": "LOCAL",
-  "keyName": "My API Key",
-  "expiresInDays": 30
+  "keyName": "My API Key"
 }
 ```
+
+**Optional Parameters:**
+- `expiresInDays`: Number of days until the key expires (1-365). If not provided, the key never expires.
 
 **Response:**
 ```json
@@ -103,10 +105,12 @@ Register a new user and receive an API key. If a user with the provided email al
   "password": "your-registration-token-from-env",
   "provider": "LOCAL",
   "company": "My Company",
-  "keyName": "My API Key",
-  "expiresInDays": 30
+  "keyName": "My API Key"
 }
 ```
+
+**Optional Parameters:**
+- `expiresInDays`: Number of days until the key expires (1-365). If not provided, the key never expires.
 
 **Important:** The `password` field should contain the registration token defined in the `API_KEY_REGISTRATION_TOKEN` environment variable, not an actual password.
 
@@ -147,10 +151,12 @@ Create a new API key.
 **Request Body:**
 ```json
 {
-  "name": "New API Key",
-  "expiresInDays": 90
+  "name": "New API Key"
 }
 ```
+
+**Optional Parameters:**
+- `expiresInDays`: Number of days until the key expires (1-365). If not provided, the key never expires.
 
 #### PUT `/api-keys/:id`
 Update an API key.
@@ -195,7 +201,7 @@ Authorization: Bearer postiz_live_abcd1234...
 
 ### Key Security
 - **Hashing**: API keys are hashed using bcrypt before storage
-- **Expiration**: Optional expiration dates for keys
+- **Expiration**: Optional expiration dates for keys (keys never expire by default)
 - **Activity Tracking**: Last used IP and timestamp tracking
 - **Active/Inactive Status**: Keys can be deactivated without deletion
 
@@ -267,7 +273,7 @@ npx prisma migrate dev --name add-user-api-keys
 
 ### cURL Examples
 
-**Login and get API key:**
+**Login and get API key (non-expiring):**
 ```bash
 curl -X POST http://localhost:3000/auth/api-key/login \
   -H "Content-Type: application/json" \
@@ -276,6 +282,19 @@ curl -X POST http://localhost:3000/auth/api-key/login \
     "password": "password123",
     "provider": "LOCAL",
     "keyName": "My API Key"
+  }'
+```
+
+**Login and get API key (with expiration):**
+```bash
+curl -X POST http://localhost:3000/auth/api-key/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "password123",
+    "provider": "LOCAL",
+    "keyName": "My API Key",
+    "expiresInDays": 30
   }'
 ```
 

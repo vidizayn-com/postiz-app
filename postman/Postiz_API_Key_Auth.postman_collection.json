@@ -45,7 +45,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"provider\": \"LOCAL\",\n  \"company\": \"{{test_company}}\",\n  \"keyName\": \"{{api_key_name}}\",\n  \"expiresInDays\": {{expires_in_days}}\n}"
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"provider\": \"LOCAL\",\n  \"company\": \"{{test_company}}\",\n  \"keyName\": \"{{api_key_name}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/api-key/register",
@@ -130,7 +130,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"provider\": \"LOCAL\",\n  \"keyName\": \"{{api_key_name}}\",\n  \"expiresInDays\": {{expires_in_days}}\n}"
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"provider\": \"LOCAL\",\n  \"keyName\": \"{{api_key_name}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/api-key/login",
@@ -317,7 +317,7 @@
     {
       "key": "expires_in_days",
       "value": "30",
-      "description": "Number of days until API key expires (1-365)"
+      "description": "Number of days until API key expires (1-365) - Optional, remove from request body for non-expiring keys"
     }
   ]
 }

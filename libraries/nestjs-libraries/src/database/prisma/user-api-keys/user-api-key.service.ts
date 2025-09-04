@@ -27,7 +27,7 @@ export interface CreateApiKeyRequest {
   userId: string;
   organizationId: string;
   name: string;
-  expiresInDays?: number;
+  expiresInDays?: number; // Optional - if not provided, key never expires
 }
 
 export interface ApiKeyResponse {
