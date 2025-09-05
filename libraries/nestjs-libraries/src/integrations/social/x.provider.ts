@@ -235,7 +235,9 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       });
 
       // Use the backend API callback URL for custom callback URL support
-      const callbackUrl = `http://localhost:3000/api/callback/oauth/x`;
+      const backendUrl = process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+      const callbackUrl = `${backendUrl}/api/callback/oauth/x`;
+      console.log('X Provider - Backend URL:', backendUrl);
       console.log('X Provider - Callback URL:', callbackUrl);
 
       console.log('X Provider - About to call generateAuthLink...');

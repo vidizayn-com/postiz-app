@@ -8,7 +8,9 @@ import {
   Param,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
@@ -52,12 +54,59 @@ export class UserApiIntegrationsController {
     };
   }
 
+  @Get('/debug/redis/:state')
+  async debugRedisState(@Param('state') state: string) {
+    const callbackUrl = await this._callbackService.getCallbackUrl(state);
+    const orgId = await ioRedis.get(`org:${state}`);
+    const loginToken = await ioRedis.get(`login:${state}`);
+    const external = await ioRedis.get(`external:${state}`);
+
+    const callbackTtl = await ioRedis.ttl(`callback:${state}`);
+    const orgTtl = await ioRedis.ttl(`org:${state}`);
+    const loginTtl = await ioRedis.ttl(`login:${state}`);
+
+    return {
+      state,
+      data: {
+        callbackUrl: callbackUrl || null,
+        orgId: orgId || null,
+        loginToken: loginToken ? 'present' : null,
+        external: external ? 'present' : null,
+      },
+      ttl: {
+        callback: callbackTtl,
+        org: orgTtl,
+        login: loginTtl,
+      },
+      allKeys: {
+        callback: await ioRedis.keys('callback:*'),
+        org: await ioRedis.keys('org:*'),
+        login: await ioRedis.keys('login:*'),
+      }
+    };
+  }
+
   @Post('/initiate')
   async initiateIntegration(
     @GetOrgFromRequest() org: Organization,
     @Body() body: ApiInitiateIntegrationDto
   ) {
+    console.log('=== INITIATE INTEGRATION CALLED ===');
+    console.log('Request body:', JSON.stringify(body, null, 2));
+    console.log('Organization:', org.id, org.name);
+
     const { provider, callbackUrl, externalUrl } = body;
+
+    // Test Redis connection first
+    try {
+      await ioRedis.set('test-key', 'test-value', 'EX', 10);
+      const testResult = await ioRedis.get('test-key');
+      console.log('Redis connection test - Set/Get result:', testResult);
+      await ioRedis.del('test-key');
+    } catch (error) {
+      console.error('Redis connection test failed:', error);
+      throw new HttpException('Redis connection failed', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
     if (!this._integrationManager.getAllowedSocialsIntegrations().includes(provider)) {
       throw new HttpException('Integration not allowed', HttpStatus.BAD_REQUEST);
@@ -83,15 +132,38 @@ export class UserApiIntegrationsController {
       // The OAuth URL now uses the API callback endpoint directly
       let authUrl = url;
 
+      console.log('Initiate Integration - Provider:', provider);
+      console.log('Initiate Integration - Generated state:', state);
+      console.log('Initiate Integration - Callback URL:', callbackUrl);
+      console.log('Initiate Integration - Organization ID:', org.id);
+
       // Store callback URL and organization context
       if (callbackUrl) {
-        await this._callbackService.storeCallbackUrl(state, callbackUrl);
+        try {
+          await this._callbackService.storeCallbackUrl(state, callbackUrl);
+          console.log('Initiate Integration - Successfully stored callback URL with state:', state);
+
+          // Verify storage immediately
+          const verifyCallback = await this._callbackService.getCallbackUrl(state);
+          console.log('Initiate Integration - Verification - Retrieved callback URL:', verifyCallback);
+        } catch (error) {
+          console.error('Initiate Integration - Error storing callback URL:', error);
+          throw new HttpException('Failed to store callback URL', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+      } else {
+        console.log('Initiate Integration - No callback URL provided');
       }
 
       // Store organization ID for the callback
-      await ioRedis.set(`org:${state}`, org.id, 'EX', 300);
-      await ioRedis.set(`login:${state}`, codeVerifier, 'EX', 300);
-      await ioRedis.set(`external:${state}`, JSON.stringify(getExternalUrl), 'EX', 300);
+      try {
+        await ioRedis.set(`org:${state}`, org.id, 'EX', 300);
+        await ioRedis.set(`login:${state}`, codeVerifier, 'EX', 300);
+        await ioRedis.set(`external:${state}`, JSON.stringify(getExternalUrl), 'EX', 300);
+        console.log('Initiate Integration - Successfully stored org ID:', org.id, 'with state:', state);
+      } catch (error) {
+        console.error('Initiate Integration - Error storing Redis data:', error);
+        throw new HttpException('Failed to store integration data', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
 
       return {
         authUrl,
@@ -114,9 +186,12 @@ export class UserApiIntegrationsController {
   @Post('/api-key')
   async connectWithApiKey(
     @GetOrgFromRequest() org: Organization,
-    @Body() body: ApiKeyIntegrationDto
+    @Body() body: ApiKeyIntegrationDto,
+    @Query('redirect') redirect?: string,
+    @Res() res?: Response
   ) {
     const { provider, apiKey, apiSecret, name, additionalSettings, callbackUrl } = body;
+    const shouldRedirect = redirect === 'true' && callbackUrl;
 
     if (!this._integrationManager.getAllowedSocialsIntegrations().includes(provider)) {
       throw new HttpException('Integration not allowed', HttpStatus.BAD_REQUEST);
@@ -209,39 +284,66 @@ export class UserApiIntegrationsController {
         createdAt: integration.createdAt,
       };
 
-      // If callback URL is provided, send notification
+      // Handle callback URL - either redirect or send notification
       if (callbackUrl) {
-        try {
-          await fetch(callbackUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Postiz-Integration-Callback/1.0',
-            },
-            body: JSON.stringify({
-              ...response,
-              timestamp: new Date().toISOString(),
-              method: 'api-key',
-            }),
+        if (shouldRedirect && res) {
+          // Redirect to callback URL with query parameters
+          const params = new URLSearchParams({
+            status: response.status,
+            provider: response.provider,
+            integrationId: response.integrationId,
+            method: 'api-key',
+            ...(response.name && { name: response.name }),
+            ...(response.username && { username: response.username }),
+            ...(response.picture && { picture: response.picture }),
           });
-        } catch (error) {
-          // Log error but don't fail the integration
-          console.error('Failed to send callback:', error);
-        }
 
-        return {
-          ...response,
-          callbackUrl,
-          message: 'Integration created successfully. Callback notification sent.'
-        };
+          const redirectUrl = `${callbackUrl}?${params.toString()}`;
+          return res.redirect(redirectUrl);
+        } else {
+          // Send POST notification (existing behavior)
+          try {
+            await fetch(callbackUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Postiz-Integration-Callback/1.0',
+              },
+              body: JSON.stringify({
+                ...response,
+                timestamp: new Date().toISOString(),
+                method: 'api-key',
+              }),
+            });
+          } catch (error) {
+            // Log error but don't fail the integration
+            console.error('Failed to send callback:', error);
+          }
+
+          return {
+            ...response,
+            callbackUrl,
+            message: 'Integration created successfully. Callback notification sent.'
+          };
+        }
       }
 
       return response;
     } catch (error) {
-      throw new HttpException(
-        error instanceof Error ? error.message : 'Failed to authenticate with API key',
-        HttpStatus.BAD_REQUEST
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Failed to authenticate with API key';
+
+      // If redirect is requested and there's a callback URL, redirect with error
+      if (shouldRedirect && callbackUrl && res) {
+        const params = new URLSearchParams({
+          status: 'error',
+          error: errorMessage,
+          method: 'api-key',
+        });
+        const redirectUrl = `${callbackUrl}?${params.toString()}`;
+        return res.redirect(redirectUrl);
+      }
+
+      throw new HttpException(errorMessage, HttpStatus.BAD_REQUEST);
     }
   }
 
